@@ -13,7 +13,8 @@ const userSchema = Schema({
     },
     phoneNumber:{
         type:String,
-        required:true
+        required:true,
+        unique:true
     },
     id:{
         type:String
@@ -21,6 +22,10 @@ const userSchema = Schema({
     password:{
         type: String,
         required: false
+    },
+    address:{
+        type:String,
+        required:true
     }
 
 });

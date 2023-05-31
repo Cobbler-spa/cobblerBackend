@@ -17,3 +17,12 @@ export const validateEmail = (email) => {
     return passwordRegex.test(password);
   };
   
+
+  export  const validatePhone  = (phoneNumber) => {
+    const regex = /^\d{10}$/;
+    return phoneNumber !== undefined && regex.test(phoneNumber);
+};
+
+export  const validateString = (str) => {
+  return str !== undefined && str.length > 0;
+};
