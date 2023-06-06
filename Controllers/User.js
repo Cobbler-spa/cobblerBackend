@@ -27,7 +27,7 @@ export const sendToken = async (req, res) => {
       phoneNumber,
     });
     const oldUser = await userModel.findOne({
-      email,
+      phoneNumber,
     });
     if (oldUser) {
       return res.status(400).json({
@@ -37,13 +37,13 @@ export const sendToken = async (req, res) => {
 
     const otp = generateOTP(); // Generate the OTP
     // Convert the mobileNumber to a string
-    const strOTP = otp.toString();
+    const hashedOTP = await bcrypt.hash(otp, 12);
 
     // Save the phoneNumber and hashedOTP in your collection
-    if (oldToken) {
+    if (!oldToken) {
       await tokenModel.create({
         phoneNumber,
-        otp: strOTP,
+        otp: hashedOTP,
       });
     } else {
       await tokenModel.updateOne(
@@ -51,13 +51,13 @@ export const sendToken = async (req, res) => {
           phoneNumber: phoneNumber,
         },
         {
-          otp: strOTP,
+          otp: hashedOTP,
         }
       );
     }
 
     const accountSid = "ACe35aa31b5c0b9f74bd50433e956f8fa1";
-    const authToken = "14086440f5f3c4a0d34e547074173282";
+    const authToken = "a95bddc0118fc6d2c2a1427d2254a16d";
     const client = twilio(accountSid, authToken);
 
     client.messages
@@ -95,7 +95,7 @@ export const sendToken = async (req, res) => {
 
 // verifyOTP
 export const verifyOTP = async (req, res) => {
-  const { phoneNumber, otp } = req.body;
+  const { phoneNumber, OTP } = req.body;
 
   try {
     const user = await tokenModel.findOne({
@@ -114,14 +114,15 @@ export const verifyOTP = async (req, res) => {
         message: "No such phone number",
       });
     }
-
-    if (user.otp !== otp) {
+    const tokenIsCorrect = await bcrypt.compare(OTP, user.otp);
+    if (!tokenIsCorrect) {
       return res.status(401).json({
         message: "OTP is incorrect",
       });
     }
 
     res.status(200).json({
+      success:"success",
       message: "Mobile Number verified",
     });
   } catch (error) {
@@ -134,7 +135,7 @@ export const verifyOTP = async (req, res) => {
 
 //signup
 export const signUp = async (req, res) => {
-  const { email, password, firstName, lastName, phoneNumber, address } =
+  const { email, password, firstName, lastName, phoneNumber, address, newsLetterCheck } =
     req.body;
   try {
     const oldUser = await userModel.findOne({
@@ -198,6 +199,12 @@ export const signUp = async (req, res) => {
       address,
     });
 
+    if(newsLetterCheck){
+      const newsResult = await newsModel.create({
+        email
+      })
+    }
+    
     const token = JWT.sign(
       {
         email: result.email,
