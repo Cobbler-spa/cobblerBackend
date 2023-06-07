@@ -9,6 +9,10 @@ const tokenSchema = Schema({
   otp: {
     type: String,
   },
+  verified: {
+    type: Boolean,
+    default: false
+}
 });
 
 export default mongoose.model('Token', tokenSchema);

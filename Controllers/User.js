@@ -7,7 +7,6 @@ import {
   validateEmail,
   validatePassword,
   validatePhone,
-  validateString,
 } from "../Utility/Validator.js";
 import { generateOTP } from "../Utility/generateOTP.js";
 import twilio from "twilio";
@@ -57,7 +56,7 @@ export const sendToken = async (req, res) => {
     }
 
     const accountSid = "ACe35aa31b5c0b9f74bd50433e956f8fa1";
-    const authToken = "a95bddc0118fc6d2c2a1427d2254a16d";
+    const authToken = "e0aa1723b9cc0b10187d43744f79a400";
     const client = twilio(accountSid, authToken);
 
     client.messages
@@ -121,6 +120,7 @@ export const verifyOTP = async (req, res) => {
       });
     }
 
+    await tokenModel.updateOne({phoneNumber:phoneNumber}, {verified:true})
     res.status(200).json({
       success:"success",
       message: "Mobile Number verified",
@@ -169,16 +169,12 @@ export const signUp = async (req, res) => {
       });
     }
 
-    if (!validateString(address)) {
-      return res.status(400).json({
-        message: "Invalid Address",
-      });
-    }
+    
 
     const TokenUser = await tokenModel.findOne({
       phoneNumber,
     });
-    if (!TokenUser) {
+    if (!TokenUser || !TokenUser.verified) {
       return res.status(400).json({
         message: "User is not verified please verify!",
       });
@@ -197,10 +193,11 @@ export const signUp = async (req, res) => {
       name: `${firstName} ${lastName}`,
       phoneNumber,
       address,
+      role:'customer'
     });
 
     if(newsLetterCheck){
-      const newsResult = await newsModel.create({
+     await newsModel.create({
         email
       })
     }
@@ -218,7 +215,14 @@ export const signUp = async (req, res) => {
     res.status(201).json({
       status: "success",
       data: {
-        user: result,
+        user: {
+          name: result.name,
+          id: result._id,
+          address:result.address,
+          email:result.email,
+          phoneNumber:result.phoneNumber,
+          role:result.role
+        },
         token,
       },
     });
@@ -262,8 +266,18 @@ export const signIn = async (req, res) => {
     );
 
     res.status(200).json({
-      result: oldUser,
-      token,
+      status: "success",
+      data: {
+        user: {
+          name: oldUser.name,
+          id: oldUser._id,
+          address:oldUser.address,
+          email:oldUser.email,
+          phoneNumber:oldUser.phoneNumber,
+          role:oldUser.role
+        },
+        token,
+      },
     });
   } catch (error) {
     res.status(500).json({
@@ -297,5 +311,60 @@ export const newsLetter = async (req, res) => {
     return res.status(500).json({
       message: "SOmething Went Wrong!",
     });
+  }
+};
+
+
+
+//add admin
+// add admin
+export const addAdmin = async (req, res) => {
+  const { email, password, phoneNumber, address, userId, firstName, lastName } = req.body;
+
+  const existUser = await userModel.findOne({ email });
+  if (existUser) {
+    return res.status(400).json({
+      message: "User already exists with this email",
+    });
+  }
+  const existUserPhone = await userModel.findOne({ phoneNumber });
+  if (existUserPhone) {
+    return res.status(400).json({
+      message: "User already exists with this phone number",
+    });
+  }
+  
+  const admin = await userModel.findById(userId);
+
+  if (!admin || admin.role !== "admin") {
+    return res.status(400).json({ message: "Unauthorized. Only admins can perform this action." });
+  }
+
+  try {
+    const hashedPassword = await bcrypt.hash(password, 12);
+
+    const result = await userModel.create({
+      email,
+      password: hashedPassword,
+      name: `${firstName} ${lastName}`,
+      phoneNumber,
+      address,
+      role: 'admin',
+    });
+
+    return res.status(201).json({
+      status: "Success",
+      user: {
+        name: result.name,
+        email: result.email,
+        mobile: result.phoneNumber,
+        role: result.role,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Something went wrong",
+    });
+    console.log(error);
   }
 };
